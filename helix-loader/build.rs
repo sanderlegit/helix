@@ -16,8 +16,7 @@ fn main() {
         .or_else(|| option_env!("HELIX_NIX_BUILD_REV").map(|s| s.to_string()));
 
     let minor = if MINOR.len() == 1 {
-        // Print single-digit months in '0M' format
-        format!("0{MINOR}")
+        format!("{MINOR}")
     } else {
         MINOR.to_string()
     };

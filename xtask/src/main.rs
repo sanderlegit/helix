@@ -92,25 +92,73 @@ pub mod tasks {
             "
 Usage: Run with `cargo xtask <task>`, eg. `cargo xtask docgen`.
 
-    Tasks:
+    Tasks
         docgen: Generate files to be included in the mdbook output.
         query-check: Check that tree-sitter queries are valid.
         theme-check: Check that theme files in runtime/themes are valid.
 "
         );
     }
+
+    pub fn run_integration_tests(additional_args: &[String]) -> Result<(), DynError> {
+        let mut test_args = vec![
+            "test".to_string(),
+            "--features".to_string(),
+            "integration".to_string(),
+            "--profile".to_string(),
+            "integration".to_string(),
+            "--workspace".to_string(),
+            "--test".to_string(),
+            "integration".to_string(),
+        ];
+        test_args.extend_from_slice(additional_args);
+        let status = std::process::Command::new("cargo")
+            .args(test_args)
+            .env(
+                "RUSTFLAGS",
+                "--cfg tokio_unstable -C target-feature=-crt-static",
+            )
+            .status();
+
+        match status {
+            Ok(exit_status) => {
+                if exit_status.success() {
+                    return Ok(());
+                } else {
+                    return Err(format!(
+                        "run-integration-test exited non-success with {}",
+                        exit_status
+                    )
+                    .into());
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to execute integration tests: {}", e);
+                return Err(format!("run-integration-test failed with error {}", e).into());
+            }
+        }
+    }
 }
 
 fn main() -> Result<(), DynError> {
-    let task = env::args().nth(1);
-    match task {
-        None => tasks::print_help(),
-        Some(t) => match t.as_str() {
-            "docgen" => tasks::docgen()?,
-            "query-check" => tasks::querycheck()?,
-            "theme-check" => tasks::themecheck()?,
-            invalid => return Err(format!("Invalid task name: {}", invalid).into()),
-        },
+    let mut args = env::args();
+    args.next();
+
+    let task = match args.next() {
+        None => {
+            tasks::print_help();
+            return Ok(());
+        }
+        Some(t) => t,
+    };
+    let remaining_args: Vec<String> = args.collect();
+
+    match task.as_str() {
+        "docgen" => tasks::docgen()?,
+        "query-check" => tasks::querycheck()?,
+        "theme-check" => tasks::themecheck()?,
+        "integration-test" => tasks::run_integration_tests(&remaining_args)?,
+        invalid => return Err(format!("Invalid task name: {}", invalid).into()),
     };
     Ok(())
 }

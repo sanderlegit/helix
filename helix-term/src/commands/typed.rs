@@ -2545,6 +2545,28 @@ fn read(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow:
     Ok(())
 }
 
+fn write_to_primary_clipboard(
+    cx: &mut compositor::Context,
+    args: Args,
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+
+    let register = '*';
+
+    let output = args.into_iter().fold(String::new(), |mut acc, arg| {
+        if !acc.is_empty() {
+            acc.push(' ');
+        }
+        acc.push_str(&arg);
+        acc
+    });
+
+    cx.editor.registers.write(register, vec![output])
+}
+
 fn echo(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow::Result<()> {
     if event != PromptEvent::Validate {
         return Ok(());
@@ -3543,6 +3565,17 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         aliases: &[],
         doc: "Prints the given arguments to the statusline.",
         fun: echo,
+        completer: CommandCompleter::none(),
+        signature: Signature {
+            positionals: (1, None),
+            ..Signature::DEFAULT
+        },
+    },
+    TypableCommand {
+        name: "write-to-primary-clipboard",
+        aliases: &[],
+        doc: "Write the given arguments to the primary clipboard.",
+        fun: write_to_primary_clipboard,
         completer: CommandCompleter::none(),
         signature: Signature {
             positionals: (1, None),
